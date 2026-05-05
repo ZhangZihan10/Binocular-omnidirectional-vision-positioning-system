@@ -1,0 +1,70 @@
+function output = CVsystem4(a)
+% Laser Segmentation and mapping, then remove noise and compute mean values
+% Input:  a - TCP client handle
+% Output: output - [x_filtered; y_filtered] 滤波后的点坐标（可选）
+
+Client = a;
+image = ImageReadTCP_One(Client, 'Center');   % 读取图像
+img = las_segm(image);                        % 激光线分割
+
+% 加载标定参数
+load('Omni_Calib_Results_Unity.mat');
+ocam_model = calib_data.ocam_model;
+
+% 系统参数
+camX = 0;   camY = 0;   camZ = 0;
+lasX = 0;   lasY = 0;   las_dist = 1950;
+CVsyst_x = -1700;   CVsyst_y = -800;   CVsyst_rot = 0;
+CVsyst_x1 = 2500;   CVsyst_y1 = 4500;   CVsyst_rot1 = 0;   % 第二位置未使用
+
+% 坐标映射
+[x, y] = mapping(img, CVsyst_rot, CVsyst_x, CVsyst_y, camX, camY, camZ, ...
+                 lasX, lasY, las_dist, ocam_model);
+
+% 去除与CV系统原点重合的点（原有去噪步骤）
+combinedVector1 = nonzeros(x);
+combinedVector2 = nonzeros(y);
+combinedVector1(combinedVector1 == CVsyst_x) = [];
+combinedVector2(combinedVector2 == CVsyst_y) = [];
+combinedVector1(combinedVector1 == CVsyst_x1) = [];
+combinedVector2(combinedVector2 == CVsyst_y1) = [];
+
+% ------------------- 新增：统计滤波去噪 -------------------
+% 计算所有点的中心
+centerX = mean(combinedVector1);
+centerY = mean(combinedVector2);
+% 计算每个点到中心的距离
+distances = sqrt((combinedVector1 - centerX).^2 + (combinedVector2 - centerY).^2);
+% 设定阈值（例如 2 倍标准差）
+threshold = 2 * std(distances);
+% 保留距离小于阈值的点
+keepIdx = distances < threshold;
+x_filtered = combinedVector1(keepIdx);
+y_filtered = combinedVector2(keepIdx);
+% -------------------------------------------------------
+
+% 计算横纵坐标的平均值
+x_mean = mean(x_filtered);
+y_mean = mean(y_filtered);
+fprintf('激光点云横坐标平均值 = %.2f mm\n', x_mean);
+fprintf('激光点云纵坐标平均值 = %.2f mm\n', y_mean);
+
+% 绘制滤波后的点云图（只保留相机成像的主要部分）
+figure;
+scatter(x_filtered, y_filtered, 5, 'filled');
+hold on;
+plot(CVsyst_x, CVsyst_y, 'r*', 'MarkerSize', 10);   % CV系统位置1
+plot(CVsyst_x1, CVsyst_y1, 'r*', 'MarkerSize', 10); % CV系统位置2
+grid on;
+xlabel('X (mm)');
+ylabel('Y (mm)');
+title('Filtered Laser Points (Noise Removed)');
+legend('激光点', 'CV系统原点', 'Location', 'best');
+axis equal;
+
+% 可选：调用原有的Toimage1函数（如需将点云还原为图片，取消下一行注释）
+% Toimage1(x_filtered, y_filtered);
+
+% 输出滤波后的点坐标（若不需要可改为输出平均值）
+output = [x_filtered; y_filtered];
+end
