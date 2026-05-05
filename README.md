@@ -43,9 +43,3 @@ For the system to function correctly in real-time, the Unity platform and the MA
 ## 💻 System Requirements
 
 The algorithms and processing pipelines in this repository have been developed and tested on an **Intel Core Ultra 9** processor to ensure optimal performance during real-time TCP transmission and point cloud clustering.
-
-## 📝 Acknowledgements
-
-This software project, *Single-Snapshot Calibration and 3D Reconstruction*, was developed by Zihan Zhang in collaboration with Ivan Kholodilin.
-
-This research is supported by the Russian Science Foundation under grant number **25-79-10376**.
